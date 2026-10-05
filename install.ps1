@@ -1,6 +1,6 @@
 # ==============================================================================
 # Script: Yuzaki Tool Box One-Click Automated Deployment
-# Command: irm https://raw.gitcode.com/XingDiao1337/tool/raw/master/install.ps1 | iex
+# Command: irm https://gitcode.com/api/v5/repos/XingDiao1337/tool/raw/install.ps1 | iex
 # ==============================================================================
 
 $ErrorActionPreference = 'Continue'
@@ -18,7 +18,7 @@ function S([string]$b) {
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Host (S 'WyFdIOajgOa1i+WIsOW9k+WJjemdnueuoeeQhuWRmOadg+mZkO+8jOato+WcqOWwneivleWUpOmGkueuoeeQhuWRmOaPkOadgy4uLg==') -ForegroundColor Green
-    $scriptUrl = 'https://raw.gitcode.com/XingDiao1337/tool/raw/master/install.ps1'
+    $scriptUrl = 'https://gitcode.com/api/v5/repos/XingDiao1337/tool/raw/install.ps1'
     $elevated = $false
     try {
         if ($PSCommandPath -and (Test-Path $PSCommandPath)) {
@@ -77,6 +77,7 @@ try {
     $global:LinesPriority = @('CDN', 'GitHub', 'GitCode')
 
     $PassUrls = @(
+        'https://gitcode.com/api/v5/repos/XingDiao1337/tool/raw/README.md',
         'https://raw.gitcode.com/XingDiao1337/tool/raw/master/README.md',
         'https://ghfast.top/https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md',
         'https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md'
