@@ -42,15 +42,33 @@ try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
 
-    $BaseUrl     = 'https://cdn.yuzakitsukasa.top'
-    $Net8Url     = "$BaseUrl/net8.exe"
-    $DriveUrl    = "$BaseUrl/Drive.zip"
-    $ToolUrl     = "$BaseUrl/publish.zip"
-    $ResourceUrl = "$BaseUrl/Resource.zip"
+    $UrlsCDN = @{
+        'net8'     = 'https://cdn.yuzakitsukasa.top/net8.exe'
+        'Drive'    = 'https://cdn.yuzakitsukasa.top/Drive.zip'
+        'publish'  = 'https://cdn.yuzakitsukasa.top/publish.zip'
+        'Resource' = 'https://cdn.yuzakitsukasa.top/Resource.zip'
+    }
+
+    $UrlsGitCode = @{
+        'net8'     = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/96c6643e54a00d2c9f0cf6d707ac60a57a3b5456/net8.exe'
+        'Drive'    = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/6b1d9df863b8e97d376fa8dcf4659c80ac38c3fd/Drive.zip'
+        'publish'  = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/b45f9afff3189e9ee10aab3f6787188a9952a589/publish.zip'
+        'Resource' = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/7ede692c8d98de43ebaac62d524d8429b280e111/Resource.zip'
+    }
+
+    $ExpectedSizes = @{
+        'net8'     = [long]58715896
+        'Drive'    = [long]20649939
+        'publish'  = [long]28595956
+        'Resource' = [long]345247355
+    }
+
+    $global:ActiveLine = 'CDN'
 
     $PassUrls    = @(
-        'https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md',
-        'https://ghfast.top/https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md'
+        'https://raw.gitcode.com/XingDiao1337/tool/raw/master/README.md',
+        'https://ghfast.top/https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md',
+        'https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md'
     )
 
     $RootDir     = 'C:\Yuzaki Tool Box'
@@ -73,22 +91,44 @@ __   __                _     _   _____           _   ____
     Write-Host (S 'ICAgICAgICAgIOWIt+acuuiupOWHhiDlkrjpsbwgTTFDSzNZICB8ICDlt6XlhbfnrrHkvZzogIXvvJpC56uZ77ya5bCP5Y+45aSn546L5Za1ICAgICAgICAgIA==') -ForegroundColor Cyan
     Write-Host '========================================================================' -ForegroundColor Magenta
 
-    # --- Phase 2: Remote Password Verification (Masked Input) ---
+    # --- Phase 2: Remote Password Verification (Auto-Ping & Masked Input) ---
     Write-Host (S 'WypdIOato+WcqOi/nuaOpeWuieWFqOacjeWKoeWZqOagoemqjOiuv+mXruadg+mZkC4uLg==') -ForegroundColor Green
-    $correctPass = $null
-    $wcPass = New-Object System.Net.WebClient
-    $wcPass.Headers.Add('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-
-    foreach ($url in $PassUrls) {
+    
+    # Auto-ping candidate password endpoints to pick fastest route
+    $pingPassObj = New-Object System.Net.NetworkInformation.Ping
+    $passCandidates = @()
+    foreach ($u in $PassUrls) {
+        $uHost = ([System.Uri]$u).Host
+        $rtt = 9999
         try {
-            $rawPass = $wcPass.DownloadString($url)
+            $r = $pingPassObj.Send($uHost, 1000)
+            if ($r.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $rtt = [int]$r.RoundtripTime
+            }
+        } catch {}
+        $passCandidates += [PSCustomObject]@{ Url = $u; Host = $uHost; Latency = $rtt }
+    }
+    $pingPassObj.Dispose()
+
+    $sortedPass = $passCandidates | Sort-Object Latency
+    $bestPass = $sortedPass[0]
+    if ($bestPass.Latency -lt 9999) {
+        Write-Host ((S 'ICAgICAgWytdIOWvhueggeacjeWKoeW3suiHquWKqOS8mOmAiTog') + $bestPass.Host + (S 'IChQaW5nIOW7tui/nzog') + $bestPass.Latency + 'ms)') -ForegroundColor Green
+    }
+
+    $correctPass = $null
+    foreach ($item in $sortedPass) {
+        try {
+            $wcPass = New-Object System.Net.WebClient
+            $wcPass.Headers.Add('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+            $rawPass = $wcPass.DownloadString($item.Url)
+            $wcPass.Dispose()
             if ($rawPass -and ($rawPass.Trim().Length -gt 0)) {
                 $correctPass = $rawPass.Trim()
                 break
             }
         } catch {}
     }
-    $wcPass.Dispose()
 
     if (-not $correctPass) {
         Write-Host (S 'Wy1dIOaXoOazlei/nuaOpeWIsOi/nOeoi+WvhueggeagoemqjOacjeWKoeWZqO+8jOivt+ajgOafpeaCqOeahOe9kee7nOi/nuaOpe+8gQ==') -ForegroundColor Red
@@ -132,7 +172,7 @@ __   __                _     _   _____           _   ____
     }
     Write-Host ((S 'ICAgICAg55uu5b2V5p625p6E5Yib5bu65a6M5oiQOiA=') + $RootDir) -ForegroundColor Green
 
-    # --- Fast Multi-Threaded Engine Registration ---
+    # --- Fast Multi-Threaded Engine Registration with Cancellation Support ---
     if (-not ('FastDownloader' -as [type])) {
         $csharpCode = @'
 using System;
@@ -145,23 +185,45 @@ public class FastDownloader {
     public static long DownloadedBytes = 0;
     public static long TotalBytes = 0;
     public static bool IsCompleted = false;
+    public static bool IsCancelled = false;
     public static string ErrorMessage = null;
+    private static CancellationTokenSource _cts = null;
 
-    public static void StartDownload(string url, string destPath, int threads) {
+    public static void CancelDownload() {
+        IsCancelled = true;
+        if (_cts != null) {
+            try { _cts.Cancel(); } catch {}
+        }
+    }
+
+    public static void StartDownload(string url, string destPath, int threads, long expectedBytes = 0) {
         DownloadedBytes = 0;
         TotalBytes = 0;
         IsCompleted = false;
+        IsCancelled = false;
         ErrorMessage = null;
+
+        if (_cts != null) {
+            try { _cts.Cancel(); _cts.Dispose(); } catch {}
+        }
+        _cts = new CancellationTokenSource();
+        CancellationToken token = _cts.Token;
 
         ServicePointManager.DefaultConnectionLimit = 64;
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
 
-        HttpWebRequest headReq = (HttpWebRequest)WebRequest.Create(url);
-        headReq.Method = "HEAD";
-        headReq.UserAgent = "Mozilla/5.0";
-        headReq.Timeout = 15000;
-        using (HttpWebResponse resp = (HttpWebResponse)headReq.GetResponse()) {
-            TotalBytes = resp.ContentLength;
+        try {
+            HttpWebRequest headReq = (HttpWebRequest)WebRequest.Create(url);
+            headReq.Method = "HEAD";
+            headReq.UserAgent = "Mozilla/5.0";
+            headReq.Timeout = 10000;
+            using (HttpWebResponse resp = (HttpWebResponse)headReq.GetResponse()) {
+                TotalBytes = resp.ContentLength;
+            }
+        } catch {}
+
+        if (TotalBytes <= 0 && expectedBytes > 0) {
+            TotalBytes = expectedBytes;
         }
 
         bool supportsRange = false;
@@ -170,7 +232,7 @@ public class FastDownloader {
                 HttpWebRequest rReq = (HttpWebRequest)WebRequest.Create(url);
                 rReq.UserAgent = "Mozilla/5.0";
                 rReq.AddRange(0, 1023);
-                rReq.Timeout = 10000;
+                rReq.Timeout = 8000;
                 using (HttpWebResponse rResp = (HttpWebResponse)rReq.GetResponse()) {
                     if ((int)rResp.StatusCode == 206) supportsRange = true;
                 }
@@ -182,23 +244,26 @@ public class FastDownloader {
                 try {
                     HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
                     req.UserAgent = "Mozilla/5.0";
-                    req.Timeout = 120000;
+                    req.Timeout = 180000;
                     using (HttpWebResponse r = (HttpWebResponse)req.GetResponse())
                     using (Stream s = r.GetResponseStream())
                     using (FileStream fs = File.Create(destPath)) {
                         byte[] buf = new byte[65536];
                         int read;
-                        while ((read = s.Read(buf, 0, buf.Length)) > 0) {
+                        while (!token.IsCancellationRequested && (read = s.Read(buf, 0, buf.Length)) > 0) {
                             fs.Write(buf, 0, read);
                             Interlocked.Add(ref DownloadedBytes, read);
                         }
                     }
+                    if (token.IsCancellationRequested) {
+                        try { File.Delete(destPath); } catch {}
+                    }
                 } catch (Exception ex) {
-                    ErrorMessage = ex.Message;
+                    if (!token.IsCancellationRequested) ErrorMessage = ex.Message;
                 } finally {
                     IsCompleted = true;
                 }
-            });
+            }, token);
             return;
         }
 
@@ -214,26 +279,37 @@ public class FastDownloader {
             partFiles[idx] = partPath;
 
             tasks[idx] = Task.Run(() => {
-                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-                req.UserAgent = "Mozilla/5.0";
-                req.AddRange(start, end);
-                req.Timeout = 60000;
-                using (HttpWebResponse r = (HttpWebResponse)req.GetResponse())
-                using (Stream s = r.GetResponseStream())
-                using (FileStream fs = File.Create(partPath)) {
-                    byte[] buf = new byte[65536];
-                    int read;
-                    while ((read = s.Read(buf, 0, buf.Length)) > 0) {
-                        fs.Write(buf, 0, read);
-                        Interlocked.Add(ref DownloadedBytes, read);
+                try {
+                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+                    req.UserAgent = "Mozilla/5.0";
+                    req.AddRange(start, end);
+                    req.Timeout = 60000;
+                    using (HttpWebResponse r = (HttpWebResponse)req.GetResponse())
+                    using (Stream s = r.GetResponseStream())
+                    using (FileStream fs = File.Create(partPath)) {
+                        byte[] buf = new byte[65536];
+                        int read;
+                        while (!token.IsCancellationRequested && (read = s.Read(buf, 0, buf.Length)) > 0) {
+                            fs.Write(buf, 0, read);
+                            Interlocked.Add(ref DownloadedBytes, read);
+                        }
                     }
+                } catch (Exception ex) {
+                    if (!token.IsCancellationRequested) ErrorMessage = ex.Message;
                 }
-            });
+            }, token);
         }
 
         Task.Run(() => {
             try {
                 Task.WaitAll(tasks);
+                if (token.IsCancellationRequested) {
+                    for (int i = 0; i < threads; i++) {
+                        try { File.Delete(partFiles[i]); } catch {}
+                    }
+                    try { File.Delete(destPath); } catch {}
+                    return;
+                }
                 using (FileStream outFs = File.Create(destPath)) {
                     for (int i = 0; i < threads; i++) {
                         using (FileStream inFs = File.OpenRead(partFiles[i])) {
@@ -243,7 +319,7 @@ public class FastDownloader {
                     }
                 }
             } catch (Exception ex) {
-                ErrorMessage = ex.Message;
+                if (!token.IsCancellationRequested) ErrorMessage = ex.Message;
             } finally {
                 IsCompleted = true;
             }
@@ -254,61 +330,157 @@ public class FastDownloader {
         Add-Type -TypeDefinition $csharpCode
     }
 
-    # --- Phase 4: Download Engine with Live Smooth Progress Bar ---
-    function Download-WithProgress {
+    # --- Line Latency & Health Assessment ---
+    function Select-BestDownloadLine {
+        Write-Host (S 'WypdIOato+WcqOaZuuiDveivhOS8sOacgOS8mOS4i+i9vee6v+i3ryAo6buY6K6kQ0ROIC8gR2l0Q29kZeWkh+eUqCkuLi4=') -ForegroundColor Green
+        $cdnPing = -1
+        $gitPing = -1
+
+        try {
+            $p1 = New-Object System.Net.NetworkInformation.Ping
+            $r1 = $p1.Send('cdn.yuzakitsukasa.top', 1200)
+            if ($r1.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $cdnPing = [int]$r1.RoundtripTime
+            }
+        } catch {}
+
+        try {
+            $p2 = New-Object System.Net.NetworkInformation.Ping
+            $r2 = $p2.Send('raw.gitcode.com', 1200)
+            if ($r2.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $gitPing = [int]$r2.RoundtripTime
+            }
+        } catch {}
+
+        if ($cdnPing -lt 0) {
+            $httpOk = $false
+            try {
+                $hReq = [System.Net.HttpWebRequest]::Create('https://cdn.yuzakitsukasa.top/publish.zip')
+                $hReq.Method = 'HEAD'
+                $hReq.UserAgent = 'Mozilla/5.0'
+                $hReq.Timeout = 2500
+                $hResp = $hReq.GetResponse()
+                $hResp.Close()
+                $httpOk = $true
+            } catch {}
+
+            if (-not $httpOk) {
+                Write-Host (S 'ICAgICAgWyFdIOajgOa1i+WIsOm7mOiupCBDRE4g57q/6Lev5peg5rOV6L+e6YCa77yM5bey6Ieq5Yqo5YiH5o2i6IezIEdpdENvZGUg5Zu95YaF6auY6YCf5aSH55So57q/6Lev77yB') -ForegroundColor Yellow
+                $global:ActiveLine = 'GitCode'
+                return
+            }
+        }
+
+        if ($cdnPing -gt 500 -and ($gitPing -gt 0 -and $gitPing -lt $cdnPing)) {
+            Write-Host ((S 'ICAgICAgWyFdIOajgOa1i+WIsOm7mOiupCBDRE4g57q/6Lev5bu26L+f6L+H6auYICg=') + $cdnPing + (S 'bXMp77yM5bey6Ieq5Yqo5YiH5o2i6IezIEdpdENvZGUg5Zu95YaF6auY6YCf5aSH55So57q/6LevICg=') + $gitPing + 'ms)') -ForegroundColor Yellow
+            $global:ActiveLine = 'GitCode'
+            return
+        }
+
+        $gitPingText = if ($gitPing -ge 0) { "$gitPing" + 'ms' } else { (S '5pyq55+l') }
+        Write-Host ((S 'ICAgICAg57q/6Lev5qOA5rWLOiDpu5jorqRDRE4g') + $cdnPing + 'ms | GitCode: ' + $gitPingText + (S 'ICjlt7LkvJjpgInpu5jorqRDRE7nur/ot68p')) -ForegroundColor Green
+        $global:ActiveLine = 'CDN'
+    }
+
+    # --- Phase 4: Download Engine with Live Smooth Progress Bar & Auto-Switch ---
+    function Download-WithAutoSwitch {
         param (
-            [string]$Url,
+            [string]$Key,
             [string]$Destination,
             [string]$DisplayName,
             [int]$Threads = 6
         )
-        Write-Host ((S 'WytdIOato+WcqOS4i+i9vTog') + $DisplayName) -ForegroundColor Green
+        $expectedBytes = [long]$ExpectedSizes[$Key]
+        $linesToTry = if ($global:ActiveLine -eq 'GitCode') { @('GitCode', 'CDN') } else { @('CDN', 'GitCode') }
 
-        $cBlock = [char]9608
-        $cEmpty = [char]9617
-        $cr = [char]13
-        $barLen = 25
-        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        for ($attempt = 0; $attempt -lt $linesToTry.Count; $attempt++) {
+            $curLine = $linesToTry[$attempt]
+            $url = if ($curLine -eq 'GitCode') { $UrlsGitCode[$Key] } else { $UrlsCDN[$Key] }
+            $lineName = if ($curLine -eq 'GitCode') { (S 'R2l0Q29kZSDlpIfnlKjnur/ot68=') } else { (S '6buY6K6kIENETiDnur/ot68=') }
 
-        [FastDownloader]::StartDownload($Url, $Destination, $Threads)
+            Write-Host ((S 'WytdIOato+WcqOS4i+i9vTog') + $DisplayName + ' [' + $lineName + ']') -ForegroundColor Green
 
-        while (-not [FastDownloader]::IsCompleted) {
-            $down = [FastDownloader]::DownloadedBytes
-            $totalBytes = [FastDownloader]::TotalBytes
-            $pct = if ($totalBytes -gt 0) { [math]::Round(($down / $totalBytes) * 100, 1) } else { 0 }
-            $speed = if ($sw.Elapsed.TotalSeconds -gt 0) { [math]::Round(($down / 1MB) / $sw.Elapsed.TotalSeconds, 2) } else { 0 }
-            $downMB = [math]::Round($down / 1MB, 1)
-            $totMB = [math]::Round($totalBytes / 1MB, 1)
-            $filled = [math]::Min($barLen, [math]::Floor($pct / 100 * $barLen))
-            $bar = ($cBlock.ToString() * $filled) + ($cEmpty.ToString() * ($barLen - $filled))
+            $cBlock = [char]9608
+            $cEmpty = [char]9617
+            $cr = [char]13
+            $barLen = 25
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
+            [FastDownloader]::StartDownload($url, $Destination, $Threads, $expectedBytes)
+
+            $switchedDueToSpeed = $false
+            while (-not [FastDownloader]::IsCompleted) {
+                $down = [FastDownloader]::DownloadedBytes
+                $totalBytes = [FastDownloader]::TotalBytes
+                $pct = if ($totalBytes -gt 0) { [math]::Round(($down / $totalBytes) * 100, 1) } else { 0 }
+                $elapsedSec = $sw.Elapsed.TotalSeconds
+                $speed = if ($elapsedSec -gt 0) { [math]::Round(($down / 1MB) / $elapsedSec, 2) } else { 0 }
+                $downMB = [math]::Round($down / 1MB, 1)
+                $totMB = if ($totalBytes -gt 0) { [math]::Round($totalBytes / 1MB, 1) } else { [math]::Round($expectedBytes / 1MB, 1) }
+                $filled = [math]::Min($barLen, [math]::Floor($pct / 100 * $barLen))
+                $bar = ($cBlock.ToString() * $filled) + ($cEmpty.ToString() * ($barLen - $filled))
+
+                try {
+                    $pos = $Host.UI.RawUI.CursorPosition
+                    $pos.X = 0
+                    $Host.UI.RawUI.CursorPosition = $pos
+                } catch {}
+
+                $mtTag = if ($totalBytes -gt 2*1024*1024 -and $curLine -eq 'CDN') { (S 'ICjlpJrnur/nqIvliqDpgJ8p') } else { '' }
+                $lineStr = $cr + '      [' + $bar + '] ' + $pct + '% (' + $downMB + 'MB/' + $totMB + 'MB) ' + $speed + ' MB/s' + $mtTag + '      '
+                Write-Host -NoNewline $lineStr -ForegroundColor Green
+
+                # Speed auto-switch check:
+                # If running for >= 6s, completed < 75%, and average speed < 0.40 MB/s:
+                if ($attempt -eq 0 -and $linesToTry.Count -gt 1) {
+                    if ($elapsedSec -ge 6.0 -and $pct -lt 75.0 -and $speed -lt 0.40) {
+                        [FastDownloader]::CancelDownload()
+                        $switchedDueToSpeed = $true
+                        while (-not [FastDownloader]::IsCompleted) {
+                            Start-Sleep -Milliseconds 50
+                        }
+                        break
+                    }
+                }
+
+                Start-Sleep -Milliseconds 120
+            }
+
+            $sw.Stop()
+
+            if ($switchedDueToSpeed) {
+                Write-Host ''
+                Write-Host (S 'ICAgICAgWyFdIOajgOa1i+WIsOW9k+WJjee6v+i3r+S4i+i9vemAn+W6pui/h+aFou+8jOato+WcqOiHquWKqOaXoOe8neWIh+aNouiHs+Wkh+eUqOmrmOmAn+e6v+i3ry4uLg==') -ForegroundColor Yellow
+                $global:ActiveLine = if ($curLine -eq 'CDN') { 'GitCode' } else { 'CDN' }
+                try { if (Test-Path $Destination) { Remove-Item $Destination -Force -ErrorAction SilentlyContinue } } catch {}
+                continue
+            }
+
+            if ([FastDownloader]::ErrorMessage -or -not (Test-Path $Destination) -or ((Get-Item $Destination).Length -lt 1024)) {
+                $errMsg = [FastDownloader]::ErrorMessage
+                Write-Host ''
+                if ($attempt -lt ($linesToTry.Count - 1)) {
+                    Write-Host ((S 'ICAgICAgWyFdIOW9k+WJjee6v+i3r+i/nuaOpeW8guW4uO+8jOato+WcqOiHquWKqOaVhemanOi9rOenu+iHs+Wkh+eUqOmrmOmAn+e6v+i3rzog') + $errMsg) -ForegroundColor Yellow
+                    $global:ActiveLine = if ($curLine -eq 'CDN') { 'GitCode' } else { 'CDN' }
+                    try { if (Test-Path $Destination) { Remove-Item $Destination -Force -ErrorAction SilentlyContinue } } catch {}
+                    continue
+                } else {
+                    Write-Host ((S 'Wy1dIOS4i+i9veWksei0pTog') + $DisplayName + ' - ' + $errMsg) -ForegroundColor Red
+                    throw $errMsg
+                }
+            }
+
+            $finalMB = [math]::Round((Get-Item $Destination).Length / 1MB, 2)
+            $fullBar = $cBlock.ToString() * $barLen
             try {
                 $pos = $Host.UI.RawUI.CursorPosition
                 $pos.X = 0
                 $Host.UI.RawUI.CursorPosition = $pos
             } catch {}
-
-            $lineStr = $cr + '      [' + $bar + '] ' + $pct + '% (' + $downMB + 'MB/' + $totMB + 'MB) ' + $speed + ' MB/s' + (S 'ICjlpJrnur/nqIvliqDpgJ8p') + '      '
-            Write-Host -NoNewline $lineStr -ForegroundColor Green
-            Start-Sleep -Milliseconds 120
+            Write-Host ($cr + '      [' + $fullBar + '] 100% (' + $finalMB + 'MB/' + $finalMB + 'MB)' + (S 'IOWujOaIkCEgICA=') + '      ') -ForegroundColor Green
+            Write-Host ('      ' + $DisplayName + (S 'IOS4i+i9veWujOaIkCAo6ICX5pe2OiA=') + [math]::Round($sw.Elapsed.TotalSeconds, 1) + (S 'cyk=')) -ForegroundColor Green
+            break
         }
-
-        $sw.Stop()
-
-        if ([FastDownloader]::ErrorMessage) {
-            Write-Host ((S 'Wy1dIOS4i+i9veWksei0pTog') + $Url + ' - ' + [FastDownloader]::ErrorMessage) -ForegroundColor Red
-            throw [FastDownloader]::ErrorMessage
-        }
-
-        $finalMB = [math]::Round((Get-Item $Destination).Length / 1MB, 2)
-        $fullBar = $cBlock.ToString() * $barLen
-        try {
-            $pos = $Host.UI.RawUI.CursorPosition
-            $pos.X = 0
-            $Host.UI.RawUI.CursorPosition = $pos
-        } catch {}
-        Write-Host ($cr + '      [' + $fullBar + '] 100% (' + $finalMB + 'MB/' + $finalMB + 'MB)' + (S 'IOWujOaIkCEgICA=') + '      ') -ForegroundColor Green
-        Write-Host ('      ' + $DisplayName + (S 'IOS4i+i9veWujOaIkCAo6ICX5pe2OiA=') + [math]::Round($sw.Elapsed.TotalSeconds, 1) + (S 'cyk=')) -ForegroundColor Green
     }
 
     # --- High-Speed Zip Extraction Engine with Smooth Progress Bar ---
@@ -409,7 +581,8 @@ public class FastDownloader {
     }
 
     # --- Phase 5: Download & Deploy All Resources ---
-    Write-Host (S 'WzIvNl0g5q2j5Zyo5LuO6auY6YCfIENETiDojrflj5botYTmupDljIUuLi4=') -ForegroundColor Green
+    Write-Host (S 'WzIvNl0g5q2j5Zyo5LuO6auY6YCf57q/6Lev6I635Y+W6LWE5rqQ5YyFLi4u') -ForegroundColor Green
+    Select-BestDownloadLine
 
     # 1. net8.exe
     $net8Path = Join-Path $EnvDir 'net8.exe'
@@ -418,7 +591,7 @@ public class FastDownloader {
     } else {
         $net8Title = S 'TWljcm9zb2Z0IC5ORVQgOCDmoYzpnaLov5DooYzlupM='
         if (Confirm-Download -DisplayName $net8Title) {
-            Download-WithProgress -Url $Net8Url -Destination $net8Path -DisplayName $net8Title
+            Download-WithAutoSwitch -Key 'net8' -Destination $net8Path -DisplayName $net8Title
         }
     }
 
@@ -426,7 +599,7 @@ public class FastDownloader {
     $driveTitle = S '6amx5Yqo5ouT5bGV5YyFIChEcml2ZS56aXAp'
     if (Confirm-Download -DisplayName $driveTitle) {
         $driveZip = Join-Path $RootDir 'Drive_temp.zip'
-        Download-WithProgress -Url $DriveUrl -Destination $driveZip -DisplayName $driveTitle
+        Download-WithAutoSwitch -Key 'Drive' -Destination $driveZip -DisplayName $driveTitle
         Expand-WithProgress -ZipPath $driveZip -DestinationPath $DriveDir -DisplayName $driveTitle
         Remove-Item -Path $driveZip -Force -ErrorAction SilentlyContinue
     }
@@ -435,7 +608,7 @@ public class FastDownloader {
     $toolTitle = S '5bel5YW3566x5qC45b+D56iL5bqPIChwdWJsaXNoLnppcCk='
     if (Confirm-Download -DisplayName $toolTitle) {
         $toolZip = Join-Path $RootDir 'publish_temp.zip'
-        Download-WithProgress -Url $ToolUrl -Destination $toolZip -DisplayName $toolTitle
+        Download-WithAutoSwitch -Key 'publish' -Destination $toolZip -DisplayName $toolTitle
         Expand-WithProgress -ZipPath $toolZip -DestinationPath $ToolDir -DisplayName $toolTitle
         Remove-Item -Path $toolZip -Force -ErrorAction SilentlyContinue
     }
@@ -444,7 +617,7 @@ public class FastDownloader {
     $resTitle = S '546p5py65ouT5bGV6LWE5rqQ5LiO5qih5Z2X5YyFIChSZXNvdXJjZS56aXAp'
     if (Confirm-Download -DisplayName $resTitle) {
         $resZip = Join-Path $RootDir 'Resource_temp.zip'
-        Download-WithProgress -Url $ResourceUrl -Destination $resZip -DisplayName $resTitle
+        Download-WithAutoSwitch -Key 'Resource' -Destination $resZip -DisplayName $resTitle
         Expand-WithProgress -ZipPath $resZip -DestinationPath $ResourceDir -DisplayName $resTitle
         Remove-Item -Path $resZip -Force -ErrorAction SilentlyContinue
     }
