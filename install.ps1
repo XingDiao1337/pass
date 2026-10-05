@@ -42,6 +42,7 @@ try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
 
+    # --- Line 1:
     $UrlsCDN = @{
         'net8'     = 'https://cdn.yuzakitsukasa.top/net8.exe'
         'Drive'    = 'https://cdn.yuzakitsukasa.top/Drive.zip'
@@ -49,11 +50,20 @@ try {
         'Resource' = 'https://cdn.yuzakitsukasa.top/Resource.zip'
     }
 
+    # --- Line 2: GitCode
     $UrlsGitCode = @{
         'net8'     = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/96c6643e54a00d2c9f0cf6d707ac60a57a3b5456/net8.exe'
         'Drive'    = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/6b1d9df863b8e97d376fa8dcf4659c80ac38c3fd/Drive.zip'
         'publish'  = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/b45f9afff3189e9ee10aab3f6787188a9952a589/publish.zip'
         'Resource' = 'https://raw.gitcode.com/XingDiao1337/tool/blobs/7ede692c8d98de43ebaac62d524d8429b280e111/Resource.zip'
+    }
+
+    # --- Line 3: GitHub  ( ghfast )
+    $UrlsGitHub = @{
+        'net8'     = 'https://ghfast.top/https://github.com/XingDiao1337/pass/raw/main/net8.exe'
+        'Drive'    = 'https://ghfast.top/https://github.com/XingDiao1337/pass/raw/main/Drive.zip'
+        'publish'  = 'https://ghfast.top/https://github.com/XingDiao1337/pass/raw/main/publish.zip'
+        'Resource' = 'https://ghfast.top/https://github.com/XingDiao1337/pass/raw/main/Resource.zip'
     }
 
     $ExpectedSizes = @{
@@ -64,8 +74,9 @@ try {
     }
 
     $global:ActiveLine = 'CDN'
+    $global:LinesPriority = @('CDN', 'GitHub', 'GitCode')
 
-    $PassUrls    = @(
+    $PassUrls = @(
         'https://raw.gitcode.com/XingDiao1337/tool/raw/master/README.md',
         'https://ghfast.top/https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md',
         'https://raw.githubusercontent.com/XingDiao1337/pass/refs/heads/main/README.md'
@@ -91,10 +102,31 @@ __   __                _     _   _____           _   ____
     Write-Host (S 'ICAgICAgICAgIOWIt+acuuiupOWHhiDlkrjpsbwgTTFDSzNZICB8ICDlt6XlhbfnrrHkvZzogIXvvJpC56uZ77ya5bCP5Y+45aSn546L5Za1ICAgICAgICAgIA==') -ForegroundColor Cyan
     Write-Host '========================================================================' -ForegroundColor Magenta
 
-    # --- Phase 2: Remote Password Verification (Auto-Ping & Masked Input) ---
+    # --- Phase 2: Unified Node Latency Ping & Remote Auth ---
+    Write-Host (S 'WypdIOato+WcqOWFqOmdouajgOa1i+WFqOe9kee6v+i3r+S4juiKgueCueW7tui/ny4uLg==') -ForegroundColor Green
+
+    # --- 1.  ping
+    $checkNodes = @(
+        [PSCustomObject]@{ Name = (S '6aaZ5riv55u06L+e5LiT57q/'); Host = 'cdn.yuzakitsukasa.top' },
+        [PSCustomObject]@{ Name = (S 'R2l0Q29kZSDplZzlg48='); Host = 'raw.gitcode.com' },
+        [PSCustomObject]@{ Name = (S 'R2l0SHViIOWbveWGheWKoOmAnw=='); Host = 'ghfast.top' }
+    )
+    $pingMainObj = New-Object System.Net.NetworkInformation.Ping
+    foreach ($nd in $checkNodes) {
+        $pVal = -1
+        try {
+            $r = $pingMainObj.Send($nd.Host, 1000)
+            if ($r.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $pVal = [int]$r.RoundtripTime
+            }
+        } catch {}
+        $pMsg = if ($pVal -ge 0) { "$pVal ms" } else { (S '5peg5rOV55u06L+e') }
+        Write-Host ('      [' + $nd.Name + '] ' + $nd.Host + ' -> ' + $pMsg) -ForegroundColor Green
+    }
+    $pingMainObj.Dispose()
+
+    # --- 2.
     Write-Host (S 'WypdIOato+WcqOi/nuaOpeWuieWFqOacjeWKoeWZqOagoemqjOiuv+mXruadg+mZkC4uLg==') -ForegroundColor Green
-    
-    # Auto-ping candidate password endpoints to pick fastest route
     $pingPassObj = New-Object System.Net.NetworkInformation.Ping
     $passCandidates = @()
     foreach ($u in $PassUrls) {
@@ -137,6 +169,7 @@ __   __                _     _   _____           _   ____
         Exit
     }
 
+    # --- 3.
     $authPassed = $false
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         Write-Host (S 'Wz9dIOivt+i+k+WFpeS9v+eUqOWvhueggTog') -ForegroundColor Green -NoNewline
@@ -330,59 +363,67 @@ public class FastDownloader {
         Add-Type -TypeDefinition $csharpCode
     }
 
-    # --- Line Latency & Health Assessment ---
+    # --- Phase 5 Helper: Re-ping Download Lines & Select Lowest Latency ---
     function Select-BestDownloadLine {
-        Write-Host (S 'WypdIOato+WcqOaZuuiDveivhOS8sOacgOS8mOS4i+i9vee6v+i3ryAo6buY6K6kQ0ROIC8gR2l0Q29kZeWkh+eUqCkuLi4=') -ForegroundColor Green
-        $cdnPing = -1
-        $gitPing = -1
+        Write-Host (S 'WypdIOato+WcqOWunuaXtuivhOS8sOS4i+i9vee6v+i3r+i0qOmHj+S4juW7tui/nyAo6aaZ5riv5LiT57q/IC8gR2l0Q29kZSAvIEdpdEh1YuWKoOmAnykuLi4=') -ForegroundColor Green
+        $linePings = @()
+        $pingObj = New-Object System.Net.NetworkInformation.Ping
 
+        # --- Node 1:
+        $cdnPing = 9999
         try {
-            $p1 = New-Object System.Net.NetworkInformation.Ping
-            $r1 = $p1.Send('cdn.yuzakitsukasa.top', 1200)
-            if ($r1.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
-                $cdnPing = [int]$r1.RoundtripTime
+            $r = $pingObj.Send('cdn.yuzakitsukasa.top', 1200)
+            if ($r.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $cdnPing = [int]$r.RoundtripTime
             }
         } catch {}
+        $linePings += [PSCustomObject]@{ Id = 'CDN'; Name = (S '6aaZ5riv55u06L+e5LiT57q/'); Host = 'cdn.yuzakitsukasa.top'; Ping = $cdnPing }
 
+        # --- Node 2: GitHub
+        $ghPing = 9999
         try {
-            $p2 = New-Object System.Net.NetworkInformation.Ping
-            $r2 = $p2.Send('raw.gitcode.com', 1200)
-            if ($r2.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
-                $gitPing = [int]$r2.RoundtripTime
+            $r = $pingObj.Send('ghfast.top', 1200)
+            if ($r.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $ghPing = [int]$r.RoundtripTime
             }
         } catch {}
+        $linePings += [PSCustomObject]@{ Id = 'GitHub'; Name = (S 'R2l0SHViIOWKoOmAn+S4k+e6vw=='); Host = 'ghfast.top'; Ping = $ghPing }
 
-        if ($cdnPing -lt 0) {
-            $httpOk = $false
-            try {
-                $hReq = [System.Net.HttpWebRequest]::Create('https://cdn.yuzakitsukasa.top/publish.zip')
-                $hReq.Method = 'HEAD'
-                $hReq.UserAgent = 'Mozilla/5.0'
-                $hReq.Timeout = 2500
-                $hResp = $hReq.GetResponse()
-                $hResp.Close()
-                $httpOk = $true
-            } catch {}
-
-            if (-not $httpOk) {
-                Write-Host (S 'ICAgICAgWyFdIOajgOa1i+WIsOm7mOiupCBDRE4g57q/6Lev5peg5rOV6L+e6YCa77yM5bey6Ieq5Yqo5YiH5o2i6IezIEdpdENvZGUg5Zu95YaF6auY6YCf5aSH55So57q/6Lev77yB') -ForegroundColor Yellow
-                $global:ActiveLine = 'GitCode'
-                return
+        # --- Node 3: GitCode
+        $gitPing = 9999
+        try {
+            $r = $pingObj.Send('raw.gitcode.com', 1200)
+            if ($r.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+                $gitPing = [int]$r.RoundtripTime
             }
+        } catch {}
+        $linePings += [PSCustomObject]@{ Id = 'GitCode'; Name = (S 'R2l0Q29kZSDplZzlg48='); Host = 'raw.gitcode.com'; Ping = $gitPing }
+
+        $pingObj.Dispose()
+
+        # --- ping
+        foreach ($lp in $linePings) {
+            $pDisplay = if ($lp.Ping -lt 9999) { "$($lp.Ping) ms" } else { (S '5peg5rOV55u06L+e') }
+            Write-Host ('      [' + $lp.Name + '] ' + $lp.Host + ' -> ' + $pDisplay) -ForegroundColor Green
         }
 
-        if ($cdnPing -gt 500 -and ($gitPing -gt 0 -and $gitPing -lt $cdnPing)) {
-            Write-Host ((S 'ICAgICAgWyFdIOajgOa1i+WIsOm7mOiupCBDRE4g57q/6Lev5bu26L+f6L+H6auYICg=') + $cdnPing + (S 'bXMp77yM5bey6Ieq5Yqo5YiH5o2i6IezIEdpdENvZGUg5Zu95YaF6auY6YCf5aSH55So57q/6LevICg=') + $gitPing + 'ms)') -ForegroundColor Yellow
-            $global:ActiveLine = 'GitCode'
-            return
+        # --- 
+        $sortedLines = $linePings | Sort-Object Ping
+        $bestLine = $sortedLines[0]
+        if ($bestLine.Ping -ge 9999) {
+            $global:ActiveLine = 'GitHub'
+        } else {
+            $global:ActiveLine = $bestLine.Id
         }
 
-        $gitPingText = if ($gitPing -ge 0) { "$gitPing" + 'ms' } else { (S '5pyq55+l') }
-        Write-Host ((S 'ICAgICAg57q/6Lev5qOA5rWLOiDpu5jorqRDRE4g') + $cdnPing + 'ms | GitCode: ' + $gitPingText + (S 'ICjlt7LkvJjpgInpu5jorqRDRE7nur/ot68p')) -ForegroundColor Green
-        $global:ActiveLine = 'CDN'
+        # --- 
+        $global:LinesPriority = @($sortedLines | ForEach-Object { $_.Id })
+
+        $activeName = if ($global:ActiveLine -eq 'CDN') { (S '6aaZ5riv55u06L+e5LiT57q/') } elseif ($global:ActiveLine -eq 'GitHub') { (S 'R2l0SHViIOWKoOmAn+S4k+e6vw==') } else { (S 'R2l0Q29kZSDplZzlg48=') }
+        Write-Host ((S 'ICAgICAgLT4g5bey6Ieq5Yqo5LyY6YCJ5pyA5L2z5LiL6L2957q/6LevOiBb') + $activeName + (S 'XQ==')) -ForegroundColor Green
     }
 
-    # --- Phase 4: Download Engine with Live Smooth Progress Bar & Auto-Switch ---
+    # --- Phase 4: Download Engine with Live Smooth Progress Bar & Multi-Line Auto-Switch ---
     function Download-WithAutoSwitch {
         param (
             [string]$Key,
@@ -391,12 +432,19 @@ public class FastDownloader {
             [int]$Threads = 6
         )
         $expectedBytes = [long]$ExpectedSizes[$Key]
-        $linesToTry = if ($global:ActiveLine -eq 'GitCode') { @('GitCode', 'CDN') } else { @('CDN', 'GitCode') }
+        
+        # --- 
+        $linesToTry = @()
+        if ($global:LinesPriority) {
+            $linesToTry = @($global:ActiveLine) + @($global:LinesPriority | Where-Object { $_ -ne $global:ActiveLine })
+        } else {
+            $linesToTry = @('CDN', 'GitHub', 'GitCode')
+        }
 
         for ($attempt = 0; $attempt -lt $linesToTry.Count; $attempt++) {
             $curLine = $linesToTry[$attempt]
-            $url = if ($curLine -eq 'GitCode') { $UrlsGitCode[$Key] } else { $UrlsCDN[$Key] }
-            $lineName = if ($curLine -eq 'GitCode') { (S 'R2l0Q29kZSDlpIfnlKjnur/ot68=') } else { (S '6buY6K6kIENETiDnur/ot68=') }
+            $url = if ($curLine -eq 'GitCode') { $UrlsGitCode[$Key] } elseif ($curLine -eq 'GitHub') { $UrlsGitHub[$Key] } else { $UrlsCDN[$Key] }
+            $lineName = if ($curLine -eq 'GitCode') { (S 'R2l0Q29kZSDplZzlg48=') } elseif ($curLine -eq 'GitHub') { (S 'R2l0SHViIOWKoOmAn+S4k+e6vw==') } else { (S '6aaZ5riv55u06L+e5LiT57q/') }
 
             Write-Host ((S 'WytdIOato+WcqOS4i+i9vTog') + $DisplayName + ' [' + $lineName + ']') -ForegroundColor Green
 
@@ -426,13 +474,12 @@ public class FastDownloader {
                     $Host.UI.RawUI.CursorPosition = $pos
                 } catch {}
 
-                $mtTag = if ($totalBytes -gt 2*1024*1024 -and $curLine -eq 'CDN') { (S 'ICjlpJrnur/nqIvliqDpgJ8p') } else { '' }
+                $mtTag = if ($totalBytes -gt 2*1024*1024 -and ($curLine -eq 'CDN' -or $curLine -eq 'GitHub')) { (S 'ICjlpJrnur/nqIvliqDpgJ8p') } else { '' }
                 $lineStr = $cr + '      [' + $bar + '] ' + $pct + '% (' + $downMB + 'MB/' + $totMB + 'MB) ' + $speed + ' MB/s' + $mtTag + '      '
                 Write-Host -NoNewline $lineStr -ForegroundColor Green
 
-                # Speed auto-switch check:
-                # If running for >= 6s, completed < 75%, and average speed < 0.40 MB/s:
-                if ($attempt -eq 0 -and $linesToTry.Count -gt 1) {
+                # --- 6  75%  < 0.40 MB/s
+                if ($attempt -lt ($linesToTry.Count - 1)) {
                     if ($elapsedSec -ge 6.0 -and $pct -lt 75.0 -and $speed -lt 0.40) {
                         [FastDownloader]::CancelDownload()
                         $switchedDueToSpeed = $true
@@ -451,7 +498,8 @@ public class FastDownloader {
             if ($switchedDueToSpeed) {
                 Write-Host ''
                 Write-Host (S 'ICAgICAgWyFdIOajgOa1i+WIsOW9k+WJjee6v+i3r+S4i+i9vemAn+W6pui/h+aFou+8jOato+WcqOiHquWKqOaXoOe8neWIh+aNouiHs+Wkh+eUqOmrmOmAn+e6v+i3ry4uLg==') -ForegroundColor Yellow
-                $global:ActiveLine = if ($curLine -eq 'CDN') { 'GitCode' } else { 'CDN' }
+                $nextIdx = ($attempt + 1) % $linesToTry.Count
+                $global:ActiveLine = $linesToTry[$nextIdx]
                 try { if (Test-Path $Destination) { Remove-Item $Destination -Force -ErrorAction SilentlyContinue } } catch {}
                 continue
             }
@@ -461,7 +509,8 @@ public class FastDownloader {
                 Write-Host ''
                 if ($attempt -lt ($linesToTry.Count - 1)) {
                     Write-Host ((S 'ICAgICAgWyFdIOW9k+WJjee6v+i3r+i/nuaOpeW8guW4uO+8jOato+WcqOiHquWKqOaVhemanOi9rOenu+iHs+Wkh+eUqOmrmOmAn+e6v+i3rzog') + $errMsg) -ForegroundColor Yellow
-                    $global:ActiveLine = if ($curLine -eq 'CDN') { 'GitCode' } else { 'CDN' }
+                    $nextIdx = ($attempt + 1) % $linesToTry.Count
+                    $global:ActiveLine = $linesToTry[$nextIdx]
                     try { if (Test-Path $Destination) { Remove-Item $Destination -Force -ErrorAction SilentlyContinue } } catch {}
                     continue
                 } else {
@@ -580,7 +629,7 @@ public class FastDownloader {
         }
     }
 
-    # --- Phase 5: Download & Deploy All Resources ---
+    # --- Phase 5: Download & Deploy All Resources (With Pre-download Ping) ---
     Write-Host (S 'WzIvNl0g5q2j5Zyo5LuO6auY6YCf57q/6Lev6I635Y+W6LWE5rqQ5YyFLi4u') -ForegroundColor Green
     Select-BestDownloadLine
 
@@ -613,7 +662,7 @@ public class FastDownloader {
         Remove-Item -Path $toolZip -Force -ErrorAction SilentlyContinue
     }
 
-    # 4. Resource.zip (Contains Module/ directory with intact zip files and separate tool folders)
+    # 4. Resource.zip
     $resTitle = S '546p5py65ouT5bGV6LWE5rqQ5LiO5qih5Z2X5YyFIChSZXNvdXJjZS56aXAp'
     if (Confirm-Download -DisplayName $resTitle) {
         $resZip = Join-Path $RootDir 'Resource_temp.zip'
